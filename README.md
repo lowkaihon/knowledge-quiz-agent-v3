@@ -70,7 +70,7 @@ This is a **Personal Knowledge Quiz Agent** web app designed to help users study
    pnpm install
    ```
 
-2. Create `.env.local` file:
+2. Set environment variables (create `.env.local` in the project root):
 
    ```bash
    echo "OPENAI_API_KEY=your_openai_api_key_here" > .env.local
@@ -78,7 +78,29 @@ This is a **Personal Knowledge Quiz Agent** web app designed to help users study
    echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key" >> .env.local
    ```
 
-3. Start development:
+   - Optional (if you also run server-side admin tasks locally): add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_JWT_SECRET` to `.env.local`.
+
+3. Initialize the database schema in Supabase/Postgres (run once):
+
+   - Supabase SQL editor (recommended):
+     - Open your project → SQL → New query
+     - Run, in order:
+       1) `scripts/001_create_database_schema.sql`
+       2) `scripts/002_fix_rls_policies.sql`
+       3) `scripts/003_make_quiz_fields_nullable.sql`
+
+   - Or via psql (replace with your DB URL):
+
+     ```bash
+     psql "$SUPABASE_DB_URL" -f scripts/001_create_database_schema.sql
+     psql "$SUPABASE_DB_URL" -f scripts/002_fix_rls_policies.sql
+     psql "$SUPABASE_DB_URL" -f scripts/003_make_quiz_fields_nullable.sql
+     ```
+
+   These scripts create tables (`users`, `study_materials`, `quizzes`, `quiz_results`, `performance_analytics`), enable RLS, add policies, and create indexes used by the app.
+
+4. Start the development server:
+
    ```bash
    pnpm dev
    ```
@@ -89,7 +111,7 @@ Open [http://localhost:3000](http://localhost:3000) to start using the Personal 
 # Development Notes
 - Short answer (fill-in-the-blank) questions seem to only accept exact matches. May require LLM to evaluate these open-ended answers.
 - Example PDF to use for quiz: https://53.fs1.hubspotusercontent-na1.net/hubfs/53/An_Introduction_to_JavaScript.pdf
-- Other information that may be required for SupaBase integration:
+- Other environment variables that may be required in the `.env.local` for SupaBase integration:
   ```POSTGRES_URL="************"
   POSTGRES_PRISMA_URL="*******************"
   SUPABASE_URL="************"

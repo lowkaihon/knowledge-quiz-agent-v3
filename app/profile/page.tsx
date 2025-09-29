@@ -334,7 +334,7 @@ function ProfileContent({ user }: { user: User }) {
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">{topic.topic}</span>
-                                {topic.is_weakness && (
+                                {(topic.is_weakness || topic.accuracy_percentage < 60) && (
                                   <Badge variant="destructive" className="text-xs">
                                     Needs Work
                                   </Badge>

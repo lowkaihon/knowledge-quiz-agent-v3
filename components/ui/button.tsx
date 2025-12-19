@@ -40,6 +40,7 @@ function Button({
   variant,
   size,
   asChild = false,
+  ref,
   ...props
 }: React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
@@ -49,6 +50,8 @@ function Button({
 
   return (
     <Comp
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ref={ref as any}
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}

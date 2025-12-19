@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from "next/server"
 import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { z } from "zod"
@@ -18,12 +19,12 @@ const QuizSchema = z.object({
   questions: z.array(QuestionSchema),
 })
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { studyMaterial, config, userId, studyMaterialId } = await request.json()
 
     if (!studyMaterial || !config || !userId) {
-      return Response.json({ error: "Missing required parameters" }, { status: 400 })
+      return NextResponse.json({ error: "Missing required parameters" }, { status: 400 })
     }
 
     const { length, difficulty, questionTypes, focusOnWeaknesses = false } = config
@@ -106,6 +107,11 @@ Generate unique IDs for each question using the format "q1", "q2", etc.
       model: openai("gpt-4o-mini"),
       prompt,
       schema: QuizSchema,
+      experimental_repairText: async ({ text }) => {
+        // Fix common JSON key typos like "type=" -> "type"
+        const repaired = text.replace(/"(\w+)=":/g, '"$1":')
+        return repaired
+      },
     })
 
     // Validate and process the generated quiz
@@ -135,7 +141,7 @@ Generate unique IDs for each question using the format "q1", "q2", etc.
       }
     }
 
-    return Response.json({
+    return NextResponse.json({
       questions: processedQuestions,
       metadata: {
         totalQuestions: processedQuestions.length,
@@ -147,6 +153,6 @@ Generate unique IDs for each question using the format "q1", "q2", etc.
     })
   } catch (error) {
     console.error("Error generating quiz:", error)
-    return Response.json({ error: "Failed to generate quiz. Please try again." }, { status: 500 })
+    return NextResponse.json({ error: "Failed to generate quiz. Please try again." }, { status: 500 })
   }
 }

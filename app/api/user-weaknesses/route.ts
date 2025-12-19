@@ -1,12 +1,13 @@
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
 
     if (!userId) {
-      return Response.json({ error: "User ID required" }, { status: 400 })
+      return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
 
     const supabase = await createClient()
@@ -21,12 +22,12 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("Database error:", error)
-      return Response.json({ error: "Failed to fetch user weaknesses" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to fetch user weaknesses" }, { status: 500 })
     }
 
-    return Response.json({ weaknesses: weaknesses || [] })
+    return NextResponse.json({ weaknesses: weaknesses || [] })
   } catch (error) {
     console.error("Error fetching user weaknesses:", error)
-    return Response.json({ error: "Failed to fetch user weaknesses" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch user weaknesses" }, { status: 500 })
   }
 }

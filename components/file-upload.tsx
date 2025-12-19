@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Upload, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
+const MIN_TEXT_LENGTH = 100 // Threshold for triggering vision fallback
+
 interface FileUploadProps {
   onMaterialUploaded: (material: string) => void
   user?: { id: string; username: string }
@@ -72,10 +74,66 @@ export function FileUpload({ onMaterialUploaded, user }: FileUploadProps) {
 
       if (file.type === "text/plain") {
         text = await file.text()
-      } else {
-        // For PDF and DOCX files, we'll simulate text extraction
-        // In a real app, you'd use libraries like pdf-parse or mammoth
-        text = `[Extracted text from ${file.name}]\n\nThis is simulated extracted text from your uploaded file. In a real implementation, this would contain the actual content from your PDF or DOCX file.`
+      } else if (file.type === "application/pdf") {
+        // Server-side PDF extraction
+        const formData = new FormData()
+        formData.append("file", file)
+
+        const response = await fetch("/api/extract-pdf", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "PDF extraction failed")
+        }
+
+        const result = await response.json()
+        text = result.text
+
+        // Vision fallback if text extraction yields little content (likely scanned PDF)
+        if (text.length < MIN_TEXT_LENGTH) {
+          toast({
+            title: "Using AI vision extraction",
+            description: "Detected scanned PDF, extracting text with AI...",
+          })
+
+          // For vision fallback, we need to render PDF pages to images client-side
+          const images = await pdfToImages(file)
+          const visionResponse = await fetch("/api/extract-text-vision", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ images }),
+          })
+
+          if (!visionResponse.ok) {
+            throw new Error("Vision extraction failed")
+          }
+
+          const visionResult = await visionResponse.json()
+          text = visionResult.text
+        }
+      } else if (
+        file.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ) {
+        // Server-side DOCX extraction
+        const formData = new FormData()
+        formData.append("file", file)
+
+        const response = await fetch("/api/extract-docx", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "DOCX extraction failed")
+        }
+
+        const result = await response.json()
+        text = result.text
       }
 
       if (text.trim().length < 50) {
@@ -117,14 +175,45 @@ export function FileUpload({ onMaterialUploaded, user }: FileUploadProps) {
         description: `Processed ${file.name} (${Math.round(file.size / 1024)}KB)`,
       })
     } catch (error) {
+      console.error("File processing error:", error)
       toast({
         title: "Error processing file",
-        description: "There was an error processing your file. Please try again.",
+        description: error instanceof Error ? error.message : "There was an error processing your file. Please try again.",
         variant: "destructive",
       })
     } finally {
       setIsProcessing(false)
     }
+  }
+
+  // Client-side PDF to images conversion (for vision fallback only)
+  const pdfToImages = async (file: File): Promise<string[]> => {
+    const pdfjsLib = await import("pdfjs-dist")
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+    const images: string[] = []
+
+    // Limit to first 10 pages to manage API costs
+    const maxPages = Math.min(pdf.numPages, 10)
+
+    for (let i = 1; i <= maxPages; i++) {
+      const page = await pdf.getPage(i)
+      const viewport = page.getViewport({ scale: 1.5 })
+
+      const canvas = document.createElement("canvas")
+      canvas.width = viewport.width
+      canvas.height = viewport.height
+
+      await page.render({
+        canvasContext: canvas.getContext("2d")!,
+        viewport,
+      } as Parameters<typeof page.render>[0]).promise
+
+      images.push(canvas.toDataURL("image/jpeg", 0.8))
+    }
+    return images
   }
 
   const handleTextSubmit = async () => {

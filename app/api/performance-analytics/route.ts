@@ -1,12 +1,13 @@
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
 
     if (!userId) {
-      return Response.json({ error: "User ID required" }, { status: 400 })
+      return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
 
     const supabase = await createClient()
@@ -20,7 +21,7 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("Database error:", error)
-      return Response.json({ error: "Failed to fetch performance analytics" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to fetch performance analytics" }, { status: 500 })
     }
 
     // Get quiz results to calculate accurate totals
@@ -31,7 +32,7 @@ export async function GET(request: Request) {
 
     if (quizError) {
       console.error("Quiz results error:", quizError)
-      return Response.json({ error: "Failed to fetch quiz results" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to fetch quiz results" }, { status: 500 })
     }
 
     const totalQuestions = quizResults?.reduce((sum, result) => sum + result.total_questions, 0) || 0
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
     const strengths = analytics?.filter((a) => a.accuracy_percentage >= 80) || []
     const improving = analytics?.filter((a) => a.accuracy_percentage >= 60 && a.accuracy_percentage < 80) || []
 
-    return Response.json({
+    return NextResponse.json({
       analytics: analytics || [],
       summary: {
         weaknesses,
@@ -57,6 +58,6 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error("Error fetching performance analytics:", error)
-    return Response.json({ error: "Failed to fetch performance analytics" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch performance analytics" }, { status: 500 })
   }
 }

@@ -1,12 +1,13 @@
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { userId, quizId, studyMaterialId, questions, userAnswers, score, totalQuestions, timeTaken } =
       await request.json()
 
     if (!userId || !questions || !userAnswers) {
-      return Response.json({ error: "Missing required parameters" }, { status: 400 })
+      return NextResponse.json({ error: "Missing required parameters" }, { status: 400 })
     }
 
     const supabase = await createClient()
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
 
     if (resultError) {
       console.error("Error saving quiz result:", resultError)
-      return Response.json({ error: "Failed to save quiz result" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to save quiz result" }, { status: 500 })
     }
 
     // Update performance analytics for each topic
@@ -178,24 +179,24 @@ export async function POST(request: Request) {
       }
     }
 
-    return Response.json({
+    return NextResponse.json({
       quizResult,
       message: "Quiz result saved and analytics updated successfully",
     })
   } catch (error) {
     console.error("Error saving quiz result:", error)
-    return Response.json({ error: "Failed to save quiz result" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to save quiz result" }, { status: 500 })
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
     const limit = searchParams.get("limit") || "10"
 
     if (!userId) {
-      return Response.json({ error: "User ID required" }, { status: 400 })
+      return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
 
     const supabase = await createClient()
@@ -213,12 +214,12 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("Database error:", error)
-      return Response.json({ error: "Failed to fetch quiz results" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to fetch quiz results" }, { status: 500 })
     }
 
-    return Response.json({ results: results || [] })
+    return NextResponse.json({ results: results || [] })
   } catch (error) {
     console.error("Error fetching quiz results:", error)
-    return Response.json({ error: "Failed to fetch quiz results" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch quiz results" }, { status: 500 })
   }
 }

@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { generateObject } from "ai"
 import { openai } from "@ai-sdk/openai"
@@ -12,12 +13,12 @@ const SemanticTagsSchema = z.object({
   }),
 })
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { title, content, fileName, fileType, userId } = await request.json()
 
     if (!title || !content || !userId) {
-      return Response.json({ error: "Missing required parameters" }, { status: 400 })
+      return NextResponse.json({ error: "Missing required parameters" }, { status: 400 })
     }
 
     const supabase = await createClient()
@@ -63,26 +64,26 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error("Database error:", error)
-      return Response.json({ error: "Failed to save study material" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to save study material" }, { status: 500 })
     }
 
-    return Response.json({
+    return NextResponse.json({
       studyMaterial,
       message: "Study material saved successfully",
     })
   } catch (error) {
     console.error("Error saving study material:", error)
-    return Response.json({ error: "Failed to process study material" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to process study material" }, { status: 500 })
   }
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
 
     if (!userId) {
-      return Response.json({ error: "User ID required" }, { status: 400 })
+      return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
 
     const supabase = await createClient()
@@ -95,12 +96,12 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error("Database error:", error)
-      return Response.json({ error: "Failed to fetch study materials" }, { status: 500 })
+      return NextResponse.json({ error: "Failed to fetch study materials" }, { status: 500 })
     }
 
-    return Response.json({ materials })
+    return NextResponse.json({ materials })
   } catch (error) {
     console.error("Error fetching study materials:", error)
-    return Response.json({ error: "Failed to fetch study materials" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to fetch study materials" }, { status: 500 })
   }
 }

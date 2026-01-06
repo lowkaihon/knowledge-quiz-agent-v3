@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { query } from "@/lib/database/client"
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,42 +10,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
 
-    const supabase = await createClient()
-
     // Get all performance analytics for the user
-    const { data: analytics, error } = await supabase
-      .from("performance_analytics")
-      .select("*")
-      .eq("user_id", userId)
-      .order("accuracy_percentage", { ascending: true })
-
-    if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to fetch performance analytics" }, { status: 500 })
-    }
+    const analyticsResult = await query(
+      `SELECT * FROM performance_analytics
+       WHERE user_id = $1
+       ORDER BY accuracy_percentage ASC`,
+      [userId]
+    )
 
     // Get quiz results to calculate accurate totals
-    const { data: quizResults, error: quizError } = await supabase
-      .from("quiz_results")
-      .select("score, total_questions")
-      .eq("user_id", userId)
+    const quizResultsData = await query(
+      `SELECT score, total_questions FROM quiz_results
+       WHERE user_id = $1`,
+      [userId]
+    )
 
-    if (quizError) {
-      console.error("Quiz results error:", quizError)
-      return NextResponse.json({ error: "Failed to fetch quiz results" }, { status: 500 })
-    }
+    const analytics = analyticsResult.rows
+    const quizResults = quizResultsData.rows
 
-    const totalQuestions = quizResults?.reduce((sum, result) => sum + result.total_questions, 0) || 0
-    const totalCorrect = quizResults?.reduce((sum, result) => sum + result.score, 0) || 0
+    const totalQuestions = quizResults.reduce((sum: number, result: any) => sum + result.total_questions, 0)
+    const totalCorrect = quizResults.reduce((sum: number, result: any) => sum + result.score, 0)
     const overallAccuracy = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0
 
     // Separate strengths and weaknesses
-    const weaknesses = analytics?.filter((a) => a.accuracy_percentage < 60) || []
-    const strengths = analytics?.filter((a) => a.accuracy_percentage >= 80) || []
-    const improving = analytics?.filter((a) => a.accuracy_percentage >= 60 && a.accuracy_percentage < 80) || []
+    const weaknesses = analytics.filter((a: any) => a.accuracy_percentage < 60)
+    const strengths = analytics.filter((a: any) => a.accuracy_percentage >= 80)
+    const improving = analytics.filter((a: any) => a.accuracy_percentage >= 60 && a.accuracy_percentage < 80)
 
     return NextResponse.json({
-      analytics: analytics || [],
+      analytics,
       summary: {
         weaknesses,
         strengths,
@@ -53,7 +46,7 @@ export async function GET(request: NextRequest) {
         overallAccuracy,
         totalAttempts: totalQuestions,
         totalCorrect,
-        totalTopics: analytics?.length || 0,
+        totalTopics: analytics.length,
       },
     })
   } catch (error) {

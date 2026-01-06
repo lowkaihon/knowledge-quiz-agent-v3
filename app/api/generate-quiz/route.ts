@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateObject } from "ai"
-import { openai } from "@ai-sdk/openai"
+import { gptMini } from "@/lib/ai/azure-openai"
 import { z } from "zod"
-import { createClient } from "@/lib/supabase/server"
+import { query } from "@/lib/database/client"
 
 const QuestionSchema = z.object({
   id: z.string(),
@@ -28,31 +28,33 @@ export async function POST(request: NextRequest) {
     }
 
     const { length, difficulty, questionTypes, focusOnWeaknesses = false } = config
-    const supabase = await createClient()
 
     let weaknessContext = ""
     let studyMaterialData = null
 
     // Get study material data if ID provided
     if (studyMaterialId) {
-      const { data } = await supabase.from("study_materials").select("*").eq("id", studyMaterialId).single()
-
-      studyMaterialData = data
+      const result = await query(
+        `SELECT * FROM study_materials WHERE id = $1`,
+        [studyMaterialId]
+      )
+      studyMaterialData = result.rows[0]
     }
 
     // Get user weaknesses for personalization
     if (focusOnWeaknesses) {
-      const { data: weaknesses } = await supabase
-        .from("performance_analytics")
-        .select("topic, accuracy_percentage")
-        .eq("user_id", userId)
-        .eq("is_weakness", true)
-        .order("accuracy_percentage", { ascending: true })
-        .limit(5)
+      const result = await query(
+        `SELECT topic, accuracy_percentage
+         FROM performance_analytics
+         WHERE user_id = $1 AND is_weakness = true
+         ORDER BY accuracy_percentage ASC
+         LIMIT 5`,
+        [userId]
+      )
 
-      if (weaknesses && weaknesses.length > 0) {
-        const weakTopics = weaknesses.map((w) => w.topic).join(", ")
-        weaknessContext = `\n\nIMPORTANT: This user has shown weakness in these topics: ${weakTopics}. 
+      if (result.rows.length > 0) {
+        const weakTopics = result.rows.map((w: any) => w.topic).join(", ")
+        weaknessContext = `\n\nIMPORTANT: This user has shown weakness in these topics: ${weakTopics}.
         Focus 60-70% of questions on these weak areas while maintaining the specified difficulty level.
         Ensure questions targeting weak areas are clear and educational to help the user improve.`
       }
@@ -104,7 +106,7 @@ Generate unique IDs for each question using the format "q1", "q2", etc.
 `
 
     const result = await generateObject({
-      model: openai("gpt-4o-mini"),
+      model: gptMini,
       prompt,
       schema: QuizSchema,
       experimental_repairText: async ({ text }) => {
@@ -122,22 +124,20 @@ Generate unique IDs for each question using the format "q1", "q2", etc.
 
     // Save quiz to database if study material ID provided
     if (studyMaterialId) {
-      const { data: quiz, error: quizError } = await supabase
-        .from("quizzes")
-        .insert([
-          {
-            user_id: userId,
-            study_material_id: studyMaterialId,
-            title: `Quiz: ${studyMaterialData?.title || "Study Material"}`,
-            questions: processedQuestions,
-            configuration: config,
-          },
-        ])
-        .select()
-        .single()
-
-      if (quizError) {
-        console.error("Error saving quiz:", quizError)
+      try {
+        await query(
+          `INSERT INTO quizzes (user_id, study_material_id, title, questions, configuration)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            userId,
+            studyMaterialId,
+            `Quiz: ${studyMaterialData?.title || "Study Material"}`,
+            JSON.stringify(processedQuestions),
+            JSON.stringify(config),
+          ]
+        )
+      } catch (error) {
+        console.error("Error saving quiz:", error)
       }
     }
 

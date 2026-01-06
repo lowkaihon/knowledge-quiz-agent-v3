@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { query } from "@/lib/database/client"
 import { generateObject } from "ai"
-import { openai } from "@ai-sdk/openai"
+import { gptMini } from "@/lib/ai/azure-openai"
 import { z } from "zod"
 
 const SemanticTagsSchema = z.object({
@@ -21,14 +21,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required parameters" }, { status: 400 })
     }
 
-    const supabase = await createClient()
-
     // Process content into chunks (simple implementation - split by paragraphs)
     const chunks = content.split("\n\n").filter((chunk: string) => chunk.trim().length > 0)
 
     // Generate semantic tags using AI
     const semanticResult = await generateObject({
-      model: openai("gpt-4o-mini"),
+      model: gptMini,
       prompt: `
         Analyze the following study material and extract semantic tags and metadata:
 
@@ -45,27 +43,25 @@ export async function POST(request: NextRequest) {
     })
 
     // Store study material in database
-    const { data: studyMaterial, error } = await supabase
-      .from("study_materials")
-      .insert([
-        {
-          user_id: userId,
-          title,
-          original_content: content,
-          processed_content: { chunks },
-          file_name: fileName,
-          file_type: fileType,
-          document_metadata: semanticResult.object.document_metadata,
-          semantic_tags: semanticResult.object.tags,
-        },
-      ])
-      .select()
-      .single()
+    const result = await query(
+      `INSERT INTO study_materials (
+        user_id, title, original_content, processed_content,
+        file_name, file_type, document_metadata, semantic_tags
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *`,
+      [
+        userId,
+        title,
+        content,
+        JSON.stringify({ chunks }),
+        fileName,
+        fileType,
+        JSON.stringify(semanticResult.object.document_metadata),
+        semanticResult.object.tags,
+      ]
+    )
 
-    if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to save study material" }, { status: 500 })
-    }
+    const studyMaterial = result.rows[0]
 
     return NextResponse.json({
       studyMaterial,
@@ -86,20 +82,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const result = await query(
+      `SELECT * FROM study_materials
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [userId]
+    )
 
-    const { data: materials, error } = await supabase
-      .from("study_materials")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to fetch study materials" }, { status: 500 })
-    }
-
-    return NextResponse.json({ materials })
+    return NextResponse.json({ materials: result.rows })
   } catch (error) {
     console.error("Error fetching study materials:", error)
     return NextResponse.json({ error: "Failed to fetch study materials" }, { status: 500 })

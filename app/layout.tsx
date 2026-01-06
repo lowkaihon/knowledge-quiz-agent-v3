@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
+import "@/lib/monitoring/appinsights" // Initialize Application Insights
 
 export const metadata: Metadata = {
   title: "Personal Knowledge Quiz Agent",

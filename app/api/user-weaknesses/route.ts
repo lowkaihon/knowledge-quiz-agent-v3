@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { query } from "@/lib/database/client"
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,22 +10,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User ID required" }, { status: 400 })
     }
 
-    const supabase = await createClient()
-
     // Get user's weak topics (accuracy < 60% with >= 10 attempts)
-    const { data: weaknesses, error } = await supabase
-      .from("performance_analytics")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("is_weakness", true)
-      .order("accuracy_percentage", { ascending: true })
+    const result = await query(
+      `SELECT * FROM performance_analytics
+       WHERE user_id = $1 AND is_weakness = true
+       ORDER BY accuracy_percentage ASC`,
+      [userId]
+    )
 
-    if (error) {
-      console.error("Database error:", error)
-      return NextResponse.json({ error: "Failed to fetch user weaknesses" }, { status: 500 })
-    }
-
-    return NextResponse.json({ weaknesses: weaknesses || [] })
+    return NextResponse.json({ weaknesses: result.rows })
   } catch (error) {
     console.error("Error fetching user weaknesses:", error)
     return NextResponse.json({ error: "Failed to fetch user weaknesses" }, { status: 500 })

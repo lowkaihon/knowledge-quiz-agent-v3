@@ -2,6 +2,10 @@
 
 An AI-powered learning platform that generates personalized quizzes from your own study materials. Upload PDFs, DOCX files, or paste text directly, and let the AI create customized quizzes with adaptive learning that focuses on your weak areas.
 
+## Demo
+
+https://github.com/user-attachments/assets/7ee18a21-d16b-4a6d-97b4-39c298e07eba
+
 **Live Demo:** [https://app-knowledge-quiz-prod.azurewebsites.net](https://app-knowledge-quiz-prod.azurewebsites.net)
 
 ## Features

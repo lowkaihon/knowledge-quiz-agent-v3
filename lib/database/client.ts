@@ -1,4 +1,4 @@
-import { Pool, QueryResult } from 'pg'
+import { Pool, QueryResult, QueryResultRow } from 'pg'
 
 /**
  * PostgreSQL connection pool for Azure PostgreSQL Flexible Server
@@ -34,7 +34,7 @@ function getPool(): Pool {
  * @param params Array of parameter values
  * @returns QueryResult with rows property
  */
-export async function query<T = any>(
+export async function query<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<QueryResult<T>> {

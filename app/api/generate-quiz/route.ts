@@ -8,7 +8,7 @@ const QuestionSchema = z.object({
   id: z.string(),
   type: z.enum(["multiple-choice", "true-false", "short-answer"]),
   question: z.string(),
-  options: z.array(z.string()).optional(),
+  options: z.array(z.string()),
   correctAnswer: z.string(),
   explanation: z.string(),
   difficulty: z.enum(["easy", "medium", "hard"]),
@@ -88,9 +88,9 @@ ${weaknessContext}
 Instructions:
 1. Generate exactly ${length} questions from the study material
 2. Distribute question types as evenly as possible among: ${questionTypes.join(", ")}
-3. For multiple-choice questions: provide exactly 4 options with only 1 correct answer
-4. For true-false questions: make statements that can be clearly true or false
-5. For short-answer questions: create fill-in-the-blank style questions
+3. For multiple-choice questions: provide exactly 4 options in the options array with only 1 correct answer
+4. For true-false questions: make statements that can be clearly true or false. IMPORTANT: Provide empty options array []
+5. For short-answer questions: create fill-in-the-blank style questions. IMPORTANT: Provide empty options array []
 6. Difficulty level "${difficulty}":
    - Easy: Basic recall and understanding
    - Medium: Application and analysis

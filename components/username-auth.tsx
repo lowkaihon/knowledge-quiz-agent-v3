@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { createClient } from "@/lib/supabase/client"
 import type { User } from "@/lib/types"
 
 interface UsernameAuthProps {
@@ -27,39 +26,22 @@ export function UsernameAuth({ onAuthenticated }: UsernameAuthProps) {
     setError(null)
 
     try {
-      const supabase = createClient()
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username: username.trim() }),
+      })
 
-      // First, try to find existing user
-      const { data: existingUser, error: fetchError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("username", username.trim())
-        .single()
+      const data = await response.json()
 
-      let user: User
-
-      if (existingUser && !fetchError) {
-        // User exists, use existing user
-        user = existingUser
-      } else {
-        // User doesn't exist, create new user
-        const { data: newUser, error: createError } = await supabase
-          .from("users")
-          .insert([{ username: username.trim() }])
-          .select()
-          .single()
-
-        if (createError) {
-          if (createError.code === "23505") {
-            // Unique constraint violation
-            setError("Username already taken. Please choose a different one.")
-            return
-          }
-          throw createError
-        }
-
-        user = newUser
+      if (!response.ok) {
+        setError(data.error || "Authentication failed")
+        return
       }
+
+      const user: User = data.user
 
       // Store user in session storage for browser session persistence
       sessionStorage.setItem("quiz_user", JSON.stringify(user))

@@ -37,3 +37,4 @@ deployments/
 LogFiles/
 webapp_logs*.zip
 *.ps1
+*.PublishSettings

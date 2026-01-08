@@ -29,6 +29,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Next.js app
+        env:
+          AZURE_OPENAI_RESOURCE_NAME: "build-placeholder"
+          AZURE_OPENAI_API_KEY: "build-placeholder"
+          DATABASE_URL: "postgresql://build:placeholder@localhost:5432/placeholder"
         run: pnpm build
 
       - name: Copy static assets to standalone folder

@@ -2,17 +2,21 @@
 
 An AI-powered learning platform that generates personalized quizzes from your own study materials. Upload PDFs, DOCX files, or paste text directly, and let the AI create customized quizzes with adaptive learning that focuses on your weak areas.
 
+**Live Demo:** [https://app-knowledge-quiz-prod.azurewebsites.net](https://app-knowledge-quiz-prod.azurewebsites.net)
+
 ## Features
 
 ### Technical Specifications
 
 | Component | Configuration | Details |
 |-----------|---------------|---------|
-| **Quiz Generation** | GPT-4o-mini | Structured output via AI SDK `generateObject()` |
+| **Hosting** | Azure App Service | Production deployment with CI/CD |
+| **Quiz Generation** | Azure OpenAI (GPT-4o-mini) | Structured output via AI SDK `generateObject()` |
 | **Text Extraction** | unpdf + mammoth | PDF, DOCX, TXT support |
-| **Vision Fallback** | GPT-4o-mini | Scanned PDF extraction (first 10 pages) |
-| **Database** | Supabase PostgreSQL | Row-Level Security enabled |
+| **Vision Fallback** | Azure OpenAI (GPT-4o-mini) | Scanned PDF extraction (first 10 pages) |
+| **Database** | Azure PostgreSQL Flexible Server | Row-Level Security enabled |
 | **Authentication** | Username-only | Session-based, no password required |
+| **Monitoring** | Azure Application Insights | Performance tracking and telemetry |
 
 ### Core Capabilities
 
@@ -41,10 +45,14 @@ An AI-powered learning platform that generates personalized quizzes from your ow
 - **Recharts** for performance analytics visualization
 - **Lucide React** for icons
 
-### Backend
-- **Supabase PostgreSQL** with Row-Level Security (RLS)
-- **AI SDK 5** (`@ai-sdk/openai`) for OpenAI integration
-- **OpenAI GPT-4o-mini** for quiz generation and text extraction
+### Backend & Cloud Services
+- **Azure App Service** - Production hosting with Node.js 20.x runtime
+- **Azure PostgreSQL Flexible Server** - Managed PostgreSQL with Row-Level Security (RLS)
+- **Azure OpenAI Service** - GPT-4o-mini deployment for quiz generation
+- **Azure Application Insights** - Performance monitoring and telemetry
+- **GitHub Actions** - Automated CI/CD pipeline
+- **AI SDK 5** (`@ai-sdk/azure`) for Azure OpenAI integration
+- **node-postgres (pg)** - Direct PostgreSQL client
 
 ### Document Processing
 - **unpdf** for PDF text extraction
@@ -53,11 +61,19 @@ An AI-powered learning platform that generates personalized quizzes from your ow
 
 ## AI Integration
 
+### Azure OpenAI Service
+All AI operations use Azure OpenAI Service with GPT-4o-mini deployment:
+- **Provider:** `@ai-sdk/azure` - Official Azure OpenAI provider for AI SDK
+- **Deployment:** Custom GPT-4o-mini deployment in Azure
+- **API Version:** `preview` with latest features
+- **Configuration:** Environment-based resource name and API key
+
 ### Quiz Generation
 Uses AI SDK's `generateObject()` with Zod schemas for structured output:
 - Generates questions with unique IDs, topics, and explanations
 - Supports configurable difficulty and question type distribution
 - References original study material in explanations
+- Powered by Azure OpenAI GPT-4o-mini deployment
 
 ### Adaptive Learning
 - Analyzes performance analytics to identify weak topics (<60% accuracy)
@@ -67,18 +83,19 @@ Uses AI SDK's `generateObject()` with Zod schemas for structured output:
 ### Vision-Based Extraction
 Fallback for scanned PDFs when text extraction yields <100 characters:
 - Renders PDF pages to images using pdfjs-dist
-- Sends to GPT-4o-mini vision for text extraction
-- Limited to first 10 pages to manage API costs
+- Sends to Azure OpenAI GPT-4o-mini vision endpoint for text extraction
+- Limited to first 10 pages to manage Azure OpenAI costs
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- pnpm package manager
-- Supabase account with PostgreSQL database
-- OpenAI API key
+- **Node.js 20+** and **pnpm 10+** package manager
+- **Azure account** with the following services:
+  - Azure PostgreSQL Flexible Server
+  - Azure OpenAI Service with GPT-4o-mini deployment
+  - (Optional) Azure Application Insights for monitoring
 
-### Installation
+### Local Development Setup
 
 1. **Clone the repository:**
    ```bash
@@ -95,27 +112,28 @@ Fallback for scanned PDFs when text extraction yields <100 characters:
 
    Create `.env.local` in the project root:
    ```bash
-   OPENAI_API_KEY=your_openai_api_key_here
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
+   # Azure PostgreSQL connection string
+   DATABASE_URL="postgresql://[username]:[password]@[server].postgres.database.azure.com:5432/[database]?sslmode=require"
 
-   Optional (for server-side admin tasks):
-   ```bash
-   SUPABASE_URL=your_supabase_url
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-   SUPABASE_JWT_SECRET=your_jwt_secret
+   # Azure OpenAI Service
+   AZURE_OPENAI_RESOURCE_NAME="your-openai-resource-name"
+   AZURE_OPENAI_API_KEY="your-azure-openai-api-key"
+
+   # Azure Application Insights (optional)
+   APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=https://..."
    ```
 
 4. **Initialize the database:**
 
-   Run the setup script via Supabase SQL Editor:
-   - `scripts/setup.sql` - Creates tables, RLS policies, and indexes
-
-   Or via psql:
+   Run the setup script on your Azure PostgreSQL instance:
    ```bash
-   psql "$SUPABASE_DB_URL" -f scripts/setup.sql
+   psql "$DATABASE_URL" -f scripts/setup.sql
    ```
+
+   This creates:
+   - 5 tables (`users`, `study_materials`, `quizzes`, `quiz_results`, `performance_analytics`)
+   - Row-Level Security (RLS) policies
+   - Indexes for query optimization
 
 5. **Start the development server:**
    ```bash
@@ -147,12 +165,28 @@ Fallback for scanned PDFs when text extraction yields <100 characters:
 
 ## Architecture
 
+### Azure Cloud Architecture
+
+```
+GitHub Actions (CI/CD)
+    ↓ [Build & Deploy]
+Azure App Service (Node.js 20.x)
+    ├─ Next.js App Router
+    ├─ API Routes
+    └─ Static Assets
+
+Connected Services:
+    ├─ Azure PostgreSQL Flexible Server (Database)
+    ├─ Azure OpenAI Service (GPT-4o-mini)
+    └─ Azure Application Insights (Monitoring)
+```
+
 ### Document Processing Pipeline
 
 ```
 File Upload → Text Extraction → Semantic Tagging → Database Storage
      │              │                  │                  │
-     │         unpdf/mammoth      GPT-4o-mini         Supabase
+     │         unpdf/mammoth      Azure OpenAI       Azure PostgreSQL
      │         (or vision)        (generates tags)    (study_materials)
      ▼
   Drag-drop or paste text
@@ -161,11 +195,11 @@ File Upload → Text Extraction → Semantic Tagging → Database Storage
 ### Quiz Generation Flow
 
 ```
-Study Material + Config → GPT-4o-mini → Structured Questions → Quiz Interface
-         │                     │                 │                   │
-    Content + settings    generateObject()   Zod validation    React components
-         │                     │                 │                   │
-    Weakness data         AI SDK 5          Question array     User answers
+Study Material + Config → Azure OpenAI → Structured Questions → Quiz Interface
+         │                  (GPT-4o-mini)          │                   │
+    Content + settings      generateObject()   Zod validation    React components
+         │                  via AI SDK 5           │                   │
+    Weakness data       Azure deployment      Question array     User answers
 ```
 
 ### Database Schema
@@ -216,7 +250,7 @@ knowledge-quiz-agent-v3/
 ├── app/                              # Next.js App Router
 │   ├── page.tsx                      # Main quiz page
 │   ├── profile/page.tsx              # User profile & analytics
-│   ├── layout.tsx                    # Root layout
+│   ├── layout.tsx                    # Root layout (with App Insights)
 │   ├── globals.css                   # Global styles
 │   └── api/                          # API routes
 │       ├── generate-quiz/            # Quiz generation
@@ -236,21 +270,28 @@ knowledge-quiz-agent-v3/
 │   ├── header.tsx                    # Navigation
 │   ├── username-auth.tsx             # Login form
 │   └── ui/                           # shadcn/ui components
-├── lib/                              # Utilities
+├── lib/                              # Utilities & Azure integrations
 │   ├── auth.ts                       # Auth helpers
 │   ├── types.ts                      # TypeScript interfaces
 │   ├── utils.ts                      # General utilities
-│   └── supabase/                     # Supabase clients
-│       ├── server.ts                 # Server-side client
-│       ├── client.ts                 # Client-side client
-│       └── middleware.ts             # Session middleware
+│   ├── database/                     # Azure PostgreSQL client
+│   │   └── client.ts                 # Connection pool & query helpers
+│   ├── ai/                           # Azure OpenAI integration
+│   │   └── azure-openai.ts           # AI SDK provider configuration
+│   └── monitoring/                   # Azure monitoring
+│       └── appinsights.ts            # Application Insights client
+├── .github/                          # GitHub Actions workflows
+│   └── workflows/
+│       └── azure-app-service-integration_*.yml  # CI/CD deployment
 ├── hooks/                            # Custom React hooks
 │   └── use-toast.ts                  # Toast notifications
 ├── scripts/                          # Database setup
 │   └── setup.sql                     # Creates tables, RLS policies, and indexes
+├── .npmrc                            # pnpm configuration (hoisted for Azure)
+├── Dockerfile                        # (Not used - standalone mode instead)
 ├── package.json                      # Dependencies
 ├── tsconfig.json                     # TypeScript config
-├── next.config.mjs                   # Next.js config
+├── next.config.mjs                   # Next.js config (standalone output)
 ├── middleware.ts                     # Auth middleware
 ├── components.json                   # shadcn/ui config
 └── CLAUDE.md                         # Development guidance
@@ -271,6 +312,101 @@ pnpm tsc --noEmit # TypeScript type checking
 
 - **Short Answer Validation**: Currently uses exact string matching. Future improvement could use LLM for semantic evaluation.
 - **Example PDF**: Use [An Introduction to JavaScript](/examples/An_Introduction_to_JavaScript.pdf) to test the upload feature ([source](https://53.fs1.hubspotusercontent-na1.net/hubfs/53/An_Introduction_to_JavaScript.pdf))
+
+## Azure Deployment
+
+### Production Environment
+
+The application is deployed to Azure App Service with the following configuration:
+
+**Azure Resources:**
+- **App Service:** `app-knowledge-quiz-prod` (Node.js 20.x, Linux)
+- **Resource Group:** `rg-knowledge-quiz-prod`
+- **PostgreSQL Server:** Azure Database for PostgreSQL Flexible Server
+- **OpenAI Service:** Azure OpenAI with GPT-4o-mini deployment
+- **Monitoring:** Azure Application Insights
+
+**Live URL:** [https://app-knowledge-quiz-prod.azurewebsites.net](https://app-knowledge-quiz-prod.azurewebsites.net)
+
+### CI/CD Pipeline
+
+**GitHub Actions Workflow** (`.github/workflows/azure-app-service-integration_*.yml`):
+
+1. **Build Job:**
+   - Sets up Node.js 20.x and pnpm 10
+   - Installs dependencies with `--frozen-lockfile`
+   - Builds Next.js in standalone mode
+   - Copies static assets to standalone folder
+   - Uploads build artifact
+
+2. **Deploy Job:**
+   - Downloads build artifact
+   - Deploys to Azure App Service using publish profile
+   - Automatic deployment on push to `azure-app-service-integration` branch
+
+### Environment Variables (Azure Portal)
+
+Required environment variables configured in Azure App Service:
+
+```bash
+# Database
+DATABASE_URL="postgresql://[username]:[password]@[server].postgres.database.azure.com:5432/[database]?sslmode=require"
+
+# Azure OpenAI
+AZURE_OPENAI_RESOURCE_NAME="[your-openai-resource-name]"
+AZURE_OPENAI_API_KEY="[your-azure-openai-api-key]"
+
+# Monitoring
+APPLICATIONINSIGHTS_CONNECTION_STRING="InstrumentationKey=...;IngestionEndpoint=https://..."
+
+# App Service Configuration
+WEBSITE_RUN_FROM_PACKAGE="1"
+SCM_DO_BUILD_DURING_DEPLOYMENT="false"
+ENABLE_ORYX_BUILD="false"
+```
+
+### Deployment Configuration
+
+**package.json:**
+- Start script: `node .next/standalone/server.js`
+- Node engine: `>=20.0.0`
+- pnpm engine: `>=10.0.0`
+
+**next.config.mjs:**
+- Output mode: `standalone` (optimized for Azure App Service)
+
+**.npmrc:**
+- `node-linker=hoisted` (Azure compatibility)
+- `auto-install-peers=true` (dependency resolution)
+
+### Manual Deployment
+
+To deploy manually to Azure:
+
+```bash
+# Build the application
+pnpm build
+
+# The standalone build is created at .next/standalone/
+# GitHub Actions automatically handles deployment on push
+```
+
+### Monitoring & Logs
+
+**Application Insights Dashboard:**
+- Performance metrics
+- Request telemetry
+- Error tracking
+- Custom events
+
+**Azure Portal Logs:**
+```bash
+# Stream live logs
+az webapp log tail --name app-knowledge-quiz-prod --resource-group rg-knowledge-quiz-prod
+
+# Download logs
+az webapp log download --name app-knowledge-quiz-prod --resource-group rg-knowledge-quiz-prod
+```
 
 ## Contributing
 

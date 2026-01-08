@@ -28,13 +28,4 @@ next-env.d.ts
 
 .claude/
 
-Azure ACA Integration Plan.md
-
-# Deployment artifacts
-deployment.zip
-deployment-check/
-deployments/
-LogFiles/
-webapp_logs*.zip
 *.ps1
-*.PublishSettings

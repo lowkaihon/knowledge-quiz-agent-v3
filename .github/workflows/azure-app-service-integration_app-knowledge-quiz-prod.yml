@@ -40,11 +40,19 @@ jobs:
           cp -r .next/static .next/standalone/.next/
           cp -r public .next/standalone/
 
+      - name: Verify standalone build contents
+        run: |
+          echo "Standalone folder contents:"
+          ls -la .next/standalone/
+          echo "Checking if node_modules exists:"
+          ls -la .next/standalone/node_modules/ | head -20 || echo "node_modules not found!"
+
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: node-app
           path: .next/standalone
+          include-hidden-files: true
 
   deploy:
     runs-on: ubuntu-latest
